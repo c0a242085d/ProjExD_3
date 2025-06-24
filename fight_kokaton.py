@@ -156,6 +156,21 @@ class Score:
         self.img = self.fonto.render(f"スコア: {self.score}", 0, self.color)
         screen.blit(self.img, self.rct)
 
+class Explosion:
+    """
+    爆発エフェクトに関するクラス
+    """
+    def __init__(self, bomb: Bomb):
+        img = pg.image.load("fig/explosion.gif")
+        self.imgs = [img, pg.transform.flip(img, True, True)]  # オリジナル＋反転画像
+        self.rct = self.imgs[0].get_rect(center=bomb.rct.center)
+        self.life = 50  # 爆発の寿命（フレーム数）
+
+    def update(self, screen: pg.Surface):
+        self.life -= 1
+        if self.life > 0:
+            img = self.imgs[self.life // 5 % 2]  # 交互に切り替え（点滅効果）
+            screen.blit(img, self.rct)
 
 def main():
     pg.display.set_caption("たたかえ！こうかとん")
@@ -163,7 +178,8 @@ def main():
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
     bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]
-    beams = []  # ← 複数ビーム対応のためのリスト
+    beams = []
+    explosions = []  # ← 追加：爆発リスト
     score = Score()
     clock = pg.time.Clock()
     tmr = 0
@@ -173,11 +189,10 @@ def main():
             if event.type == pg.QUIT:
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                beams.append(Beam(bird))  # スペースキーでビーム追加
+                beams.append(Beam(bird))
 
         screen.blit(bg_img, [0, 0])
 
-        # こうかとんと爆弾の衝突判定
         for bomb in bombs:
             if bird.rct.colliderect(bomb.rct):
                 bird.change_img(8, screen)
@@ -185,35 +200,36 @@ def main():
                 time.sleep(1)
                 return
 
-        # ビームと爆弾の衝突判定
         for i, bomb in enumerate(bombs):
             if bomb is not None:
                 for j, beam in enumerate(beams):
                     if beam is not None and beam.rct.colliderect(bomb.rct):
+                        explosions.append(Explosion(bomb))  # ← 追加：爆発生成
                         bombs[i] = None
                         beams[j] = None
                         bird.change_img(6, screen)
                         score.score += 1
-                        break  # 同時ヒット防止
+                        break
 
-        # リスト更新（Noneを除外）
         bombs = [b for b in bombs if b is not None]
+        beams = [b for b in beams if b is not None and check_bound(b.rct) == (True, True)]
 
-        new_beams = []
-        for beam in beams:
-            if beam is not None and check_bound(beam.rct) == (True, True):
-                new_beams.append(beam)
-        beams = new_beams  # 生きてるビームだけ残す
-
-        # 描画処理
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
         for beam in beams:
             beam.update(screen)
         for bomb in bombs:
             bomb.update(screen)
-        score.update(screen)
 
+        # 爆発の更新・描画・生存管理
+        explosions_alive = []
+        for ex in explosions:
+            ex.update(screen)
+            if ex.life > 0:
+                explosions_alive.append(ex)
+        explosions = explosions_alive
+
+        score.update(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
