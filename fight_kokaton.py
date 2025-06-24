@@ -180,7 +180,7 @@ def main():
     bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]
     beams = []
     explosions = []  # ← 追加：爆発リスト
-    score = Score()
+    score = Score() # インスタンスの生成
     clock = pg.time.Clock()
     tmr = 0
 
